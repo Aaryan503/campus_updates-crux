@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "618812622213",
+    "firebase_url": "https://campus-updates-default-rtdb.firebaseio.com",
+    "project_id": "campus-updates",
+    "storage_bucket": "campus-updates.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:618812622213:android:1d091ca4e4a739fba970ec",
+        "android_client_info": {
+          "package_name": "com.example.campus_updates"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASut20xyhi0reUOQcLG4R_TkdlgZ6TNGw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
