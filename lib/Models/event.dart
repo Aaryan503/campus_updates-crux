@@ -20,7 +20,7 @@ class Event {
   final String id;
   final String description;
   String get formattedDate {
-    return dateFormatter.format(date); // gets a formatted date in form of ymd of date for given expense
+    return dateFormatter.format(date);
   }
   String get formattedTime {
     return timeFormatter.format(date);
