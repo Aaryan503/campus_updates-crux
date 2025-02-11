@@ -14,6 +14,7 @@ class FilterDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeNotifier = ref.read(themeNotifierProvider.notifier);
     final isDarkMode = ref.watch(themeNotifierProvider) == ThemeMode.dark;
+    final theme = Theme.of(context);
     return Drawer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -21,11 +22,11 @@ class FilterDrawer extends ConsumerWidget {
           DrawerHeader(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.shade800,
+              color: theme.colorScheme.primary,
             ),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.event_available,
                   size: 48,
                   color: Colors.white,
@@ -33,11 +34,7 @@ class FilterDrawer extends ConsumerWidget {
                 const SizedBox(width: 16),
                 Text(
                   'Events',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white),
                 ),
               ],
             ),
@@ -46,14 +43,11 @@ class FilterDrawer extends ConsumerWidget {
             leading: Icon(
               Icons.calendar_today,
               size: 28,
-              color: Colors.blue.shade800,
+              color: theme.colorScheme.primary,
             ),
-            title: const Text(
+            title: Text(
               'Current Events',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             onTap: () {
               onSelectScreen('events');
@@ -63,25 +57,21 @@ class FilterDrawer extends ConsumerWidget {
             leading: Icon(
               Icons.settings,
               size: 28,
-              color: Colors.blue.shade800,
+              color: theme.colorScheme.primary,
             ),
-            title: const Text(
+            title: Text(
               'Filters',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             onTap: () {
               onSelectScreen('filters');
             },
           ),
           SwitchListTile(
-            title: const Text('Dark Mode', 
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),),
+            title: Text(
+              'Dark Mode',
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
             value: isDarkMode,
             onChanged: (value) {
               themeNotifier.toggleTheme(value);
@@ -94,7 +84,7 @@ class FilterDrawer extends ConsumerWidget {
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                side: BorderSide(color: Colors.blue.shade800),
+                side: BorderSide(color: theme.colorScheme.primary),
               ),
               onPressed: () async {
                 try {
@@ -104,20 +94,16 @@ class FilterDrawer extends ConsumerWidget {
                     MaterialPageRoute(builder: (ctx) => const AuthScreen()),
                   );
                 } catch (error) {
-                rethrow;
+                  rethrow;
                 }
               },
               icon: Icon(
                 Icons.exit_to_app,
-                color: Theme.of(context).textTheme.bodyMedium!.color,
+                color: theme.textTheme.bodyMedium?.color,
               ),
               label: Text(
                 'Logout',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).textTheme.bodyMedium!.color,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
           ),
