@@ -1,4 +1,4 @@
-
+import 'package:campus_updates/Screens/update_event.dart';
 import 'package:flutter/material.dart';
 import 'package:campus_updates/Screens/event_screen.dart';
 import 'package:campus_updates/Screens/filters.dart';
@@ -20,7 +20,7 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>{
   String? _error;
   bool _isLoading = false;
   String userRole = '';
@@ -80,6 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               title: eventData['title'],
               club: associatedClub,
               date: eventDate,
+              registeredUsers: List<String>.from(eventData['registeredUsers'] ?? []),
               description: eventData['description'],
             ),
           );
@@ -105,6 +106,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     } catch (error) {
       setState(() {
+        print(error);
         _error = 'Something went wrong! Please try again later.';
       });
     }
@@ -129,16 +131,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
-  void _openDetails(String eventName, String clubName, DateTime datetime,
-      String description) {
+  void _openDetails(Event event) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (ctx) => EventDetailsScreen(
-          eventName: eventName,
-          clubName: clubName,
-          datetime: datetime,
-          description: description,
-        ),
+        builder: (ctx) => EventDetailsScreen(eventId: event.id)
       ),
     );
   }
@@ -183,30 +179,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load user role: $error')),
-      );
-    }
-  }
-
-  void _deleteEvent(Event event) async {
-    final eventRef = FirebaseFirestore.instance.collection('events').doc(event.id);
-
-    final index = eventsList.indexOf(event);
-    setState(() {
-      eventsList.removeAt(index);
-    });
-
-    try {
-      await eventRef.delete();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Event deleted successfully!')),
-      );
-    } catch (error) {
-      setState(() {
-        eventsList.insert(index, event);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting event: $error')),
       );
     }
   }
@@ -271,10 +243,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             onTap: () {
               _openDetails(
-                filteredEvents[index].title,
-                filteredEvents[index].club.name,
-                filteredEvents[index].date,
-                filteredEvents[index].description,
+                filteredEvents[index],
               );
             },
             leading: CircleAvatar(
@@ -311,30 +280,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 if (userRole.toUpperCase() == filteredEvents[index].club.name.toUpperCase() || userRole == 'admin')
                   IconButton(
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Confirm Deletion'),
-                          content: const Text('Are you sure you want to delete this event?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(false),
-                              child: const Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(true),
-                              child: const Text('Delete'),
-                            ),
-                          ],
+                    onPressed: () 
+                    async {
+                      await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (ctx) => UpdateEvent(
+                        event: filteredEvents[index], 
+                        userRole: userRole),
                         ),
                       );
-
-                      if (confirm == true) {
-                        _deleteEvent(filteredEvents[index]);
-                      }
+                      _loadItems();
                     },
-                    icon: const Icon(Icons.delete, color: Color.fromARGB(255, 225, 142, 136)),
+                    icon: const Icon(Icons.edit),
                   ),
               ],
             ),

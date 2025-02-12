@@ -1,56 +1,58 @@
+import 'package:campus_updates/Models/club.dart';
 import 'package:campus_updates/Models/event.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:campus_updates/Models/club.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class NewEvent extends StatefulWidget {
-  const NewEvent({super.key,required this.userRole});
+class UpdateEvent extends StatefulWidget {
+  const UpdateEvent({super.key, required this.event, required this.userRole});
+  final Event event;
   final String userRole;
 
   @override
-  State<NewEvent> createState() {
-    return _NewEventState();
+  State<UpdateEvent> createState() {
+    return _UpdateEventState();
   }
 }
 
-class _NewEventState extends State<NewEvent> {
+class _UpdateEventState extends State<UpdateEvent> {
+
   final _formKey = GlobalKey<FormState>();
-  var _isSending = false;
-  var enteredTitle = '';
+  bool _isSending = false;
+  var enteredTitle;
+  var enteredDescription;
   var enteredClub = '';
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  Filters selectedCategory = Filters.technical;
-  var enteredDescription = '';
-
 
   void _presentDatePicker() async {
     final now = DateTime.now();
+    final initialDt = widget.event.date;
+    final initialDate = DateTime(initialDt.year, initialDt.month, initialDt.day);
     final firstDate = DateTime(now.year, now.month, now.day);
     final lastDate = DateTime(now.year + 1, now.month, now.day);
-    final pickedDate = await showDatePicker(
+    var pickedDate = await showDatePicker(
       context: context,
-      initialDate: now,
+      initialDate: initialDate,
       firstDate: firstDate,
       lastDate: lastDate,
     );
-    if (pickedDate == null) return;
     setState(() {
       _selectedDate = pickedDate;
     });
   }
 
   void _presentTimePicker() async {
+    final initialDt = widget.event.date;
     var pickedTime = await showTimePicker(
       context: context,
       initialEntryMode: TimePickerEntryMode.input,
-      initialTime: TimeOfDay.now(),
+      initialTime: TimeOfDay(hour: initialDt.hour, minute: initialDt.minute),
     );
 
-    if (pickedTime == null) return;
     setState(() {
       _selectedTime = pickedTime;
+      _selectedTime ??= TimeOfDay(hour: initialDt.hour, minute: initialDt.minute);
     });
   }
 
@@ -63,9 +65,9 @@ class _NewEventState extends State<NewEvent> {
       time.minute,
     );
   }
-
+  
   Future<Filters?> _selectCategoryPopup() async {
-    Filters? _selectedFilter = Filters.technical;
+    Filters? _selectedFilter = widget.event.club.type;
     return showDialog<Filters>(
       context: context,
       builder: (context) {
@@ -133,7 +135,7 @@ class _NewEventState extends State<NewEvent> {
     );
   }
 
-  _addClub(String clubName, Filters category) async {
+    _addClub(String clubName, Filters category) async {
     try {
       final clubsCollection = FirebaseFirestore.instance.collection('clubs');
       final querySnapshot = await clubsCollection
@@ -152,123 +154,176 @@ class _NewEventState extends State<NewEvent> {
     }
   }
 
-void _saveItem() async {
-  if (_formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
+  void _updateItem() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
 
-    if (_selectedDate == null || _selectedTime == null ||
-        mergeDateAndTime(_selectedDate!, _selectedTime!).isBefore(DateTime.now())) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Invalid input'),
-          content: const Text('Please make sure a valid Date and Time were entered'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Okay'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+      
+      final initialDt = widget.event.date;
+      final initialDate = DateTime(initialDt.year, initialDt.month, initialDt.day);
+      _selectedDate ??= initialDate;
+      _selectedTime ??= TimeOfDay(hour: initialDt.hour, minute: initialDt.minute);
 
-    setState(() {
-      _isSending = true;
-    });
-
-    final DateTime mergedDateTime = mergeDateAndTime(_selectedDate!, _selectedTime!);
-
-    try {
-      final clubsCollection = FirebaseFirestore.instance.collection('clubs');
-
-      if (widget.userRole == 'admin') {
-        enteredClub = enteredClub.toLowerCase();
-      } else {
-        enteredClub = widget.userRole.toLowerCase();
-      }
-
-      final clubsSnapshot = await clubsCollection
-          .where('clubname', isEqualTo: enteredClub)
-          .limit(1)
-          .get();
-
-      if (clubsSnapshot.docs.isNotEmpty) {
-        final String stringCategory = clubsSnapshot.docs.first['category'];
-        selectedCategory = Filters.values.firstWhere(
-          (filter) => filter.toString().split('.').last == stringCategory,
-          orElse: () => Filters.technical, 
+      if (mergeDateAndTime(_selectedDate!, _selectedTime!).isBefore(DateTime.now())) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Invalid input'),
+            content: const Text('Please make sure a valid Date and Time were entered'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Okay'),
+              ),
+            ],
+          ),
         );
-      } else {
-        if (widget.userRole == 'admin') {
-          selectedCategory = Filters.technical;
-        } else {
-          Filters? userSelectedCategory = await _selectCategoryPopup();
-          if (userSelectedCategory != null) {
-            selectedCategory = userSelectedCategory;
-          } else {
-            print("User did not select a category. Defaulting to Technical.");
-            selectedCategory = Filters.technical;
-          }
-        }
-        await _addClub(enteredClub, selectedCategory);
+        return;
       }
-      final eventRef = FirebaseFirestore.instance.collection('events');
 
-      final newEvent = await eventRef.add({
-        'title': enteredTitle,
-        'clubname': enteredClub,
-        'datetime': Timestamp.fromDate(mergedDateTime), 
-        'description': enteredDescription,
-        'registeredUsers':  [],
-      });
-
-      if (!context.mounted) return;
-
-      Navigator.of(context).pop(
-        Event(
-          id: newEvent.id, 
-          title: enteredTitle,
-          date: mergedDateTime,
-          club: Club(name: enteredClub, type: selectedCategory),
-          description: enteredDescription,
-          registeredUsers: [],
-        ),
-      );
-    } catch (error) {
-      print('Error saving event: $error');
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Error'),
-          content: Text('Failed to save event. Please try again.\n\n$error'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Okay'),
-            ),
-          ],
-        ),
-      );
-    } finally {
       setState(() {
-        _isSending = false;
+        _isSending = true;
       });
+
+      final DateTime mergedDateTime = mergeDateAndTime(_selectedDate!, _selectedTime!);
+      Filters selectedCategory = widget.event.club.type; 
+
+      try {
+        final clubsCollection = FirebaseFirestore.instance.collection('clubs');
+
+        if (widget.userRole == 'admin') {
+          enteredClub = enteredClub.toLowerCase();
+        } else {
+          enteredClub = widget.userRole.toLowerCase();
+        }
+
+        final clubsSnapshot = await clubsCollection
+            .where('clubname', isEqualTo: enteredClub)
+            .limit(1)
+            .get();
+
+        if (clubsSnapshot.docs.isNotEmpty) {
+          final String stringCategory = clubsSnapshot.docs.first['category'];
+          selectedCategory = Filters.values.firstWhere(
+            (filter) => filter.toString().split('.').last == stringCategory,
+            orElse: () => widget.event.club.type, 
+          );
+        } else {
+          if (widget.userRole == 'admin') {
+            selectedCategory = widget.event.club.type;
+          } else {
+            Filters? userSelectedCategory = await _selectCategoryPopup();
+            if (userSelectedCategory != null) {
+              selectedCategory = userSelectedCategory;
+            } else {
+              print("User did not select a category. Defaulting to previous type.");
+              selectedCategory = widget.event.club.type;
+            }
+          }
+          await _addClub(enteredClub, selectedCategory);
+        }
+        final eventRef = FirebaseFirestore.instance.collection('events').doc(widget.event.id);
+
+        await eventRef.update({
+          'title': enteredTitle,
+          'clubname': enteredClub,
+          'datetime': Timestamp.fromDate(mergedDateTime), 
+          'description': enteredDescription,
+          'registeredUsers':  [],
+        });
+
+        if (!context.mounted) return;
+
+        Navigator.of(context).pop(
+          Event(
+            id: widget.event.id, 
+            title: enteredTitle,
+            date: mergedDateTime,
+            club: Club(name: enteredClub, type: selectedCategory),
+            description: enteredDescription,
+            registeredUsers: [],
+          ),
+        );
+      } catch (error) {
+        print('Error saving event: $error');
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('Failed to save event. Please try again.\n\n$error'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Okay'),
+              ),
+            ],
+          ),
+        );
+      } finally {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
   }
-}
 
-  
-  
+  void _deleteEvent(Event event) async {
+    final eventRef = FirebaseFirestore.instance.collection('events').doc(event.id);
+    try {
+      await eventRef.delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Event deleted successfully!')),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting event: $error')),
+      );
+    }
+  }
+
+
   @override
-  Widget build(BuildContext context) {
+    Widget build(BuildContext context) {
+    Filters selectedCategory = widget.event.club.type;
     return Scaffold(
       appBar: AppBar(
         title: Text("Add New Event"),
         centerTitle: true,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 4,
+        actions: [
+          if (widget.userRole != 'guest')
+            IconButton(
+              onPressed:
+                () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Confirm Deletion'),
+                    content: const Text('Are you sure you want to delete this event?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  _deleteEvent(widget.event);
+                  if (mounted){
+                    Navigator.of(context).pop();
+                  }
+                }
+              },
+              icon: const Icon(Icons.delete, color: Color.fromARGB(255, 225, 142, 136)),
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
@@ -288,8 +343,9 @@ void _saveItem() async {
                       ),
                       filled: true,
                       fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-                      counterText: "",
+                      counterText: '',
                     ),
+                    initialValue: widget.event.title,
                     validator: (value) {
                       if (value == null ||
                           value.isEmpty ||
@@ -318,8 +374,9 @@ void _saveItem() async {
                               ),
                               filled: true,
                               fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-                              counterText: "",
+                              counterText: '',
                             ),
+                              initialValue: widget.event.club.name,
                             validator: (value) {
                               if (value == null ||
                                   value.isEmpty ||
@@ -382,7 +439,7 @@ void _saveItem() async {
                           icon: const Icon(Icons.calendar_today),
                           label: Text(
                             _selectedDate == null
-                                ? 'Select Date'
+                                ? DateFormat.yMMMd().format(DateTime(widget.event.date.year, widget.event.date.month, widget.event.date.day))
                                 : DateFormat.yMMMd().format(_selectedDate!),
                              style: Theme.of(context).textTheme.bodyMedium,
                           ),
@@ -398,7 +455,7 @@ void _saveItem() async {
                           icon: const Icon(Icons.access_time),
                           label: Text(
                             _selectedTime == null
-                                ? 'Select Time'
+                                ? TimeOfDay(hour: widget.event.date.hour, minute: widget.event.date.minute).format(context)
                                 : _selectedTime!.format(context),
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
@@ -423,6 +480,7 @@ void _saveItem() async {
                       fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                       counterText: "",
                     ),
+                    initialValue: widget.event.description,
                     onSaved: (value) {
                       enteredDescription = value ?? '';
                     },
@@ -435,13 +493,13 @@ void _saveItem() async {
                         onPressed: _isSending
                             ? null
                             : () {
-                                _formKey.currentState!.reset();
+                                Navigator.of(context).pop();
                               },
-                        child: const Text('Reset'),
+                        child: const Text('Cancel'),
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton(
-                        onPressed: _isSending ? null : _saveItem,
+                        onPressed: _isSending ? null : _updateItem,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
@@ -460,7 +518,7 @@ void _saveItem() async {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Add Item'),
+                            : const Text('Update Item'),
                       ),
                     ],
                   ),
